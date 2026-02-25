@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { LayoutType, NexusLayouts, NexusProfile, WidgetId, WidgetSettings } from './types';
 import {
   migrateFromQuoteMaster,
@@ -22,7 +22,7 @@ import SettingsPanel from './components/SettingsPanel';
 import AddWidgetPanel from './components/AddWidgetPanel';
 import ShortcutsHelp from './components/ShortcutsHelp';
 import AIChatPopup from './components/AIChatPopup';
-import { IconSettings, IconPlus, IconShortcuts, IconAi } from './icons';
+import { IconSettings, IconPlus, IconShortcuts, IconAi, IconGrid } from './icons';
 
 // Widgets
 import ClockWidget from './components/widgets/ClockWidget';
@@ -46,6 +46,8 @@ function App() {
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [aiChatOpen, setAIChatOpen] = useState(false);
   const [aiChatShortcut, setAIChatShortcut] = useState<'ctrl+space' | 'alt+space' | 'meta+space'>('alt+space');
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const navMenuRef = useRef<HTMLDivElement>(null);
 
   // Initialize: migrate then load
   useEffect(() => {
@@ -222,6 +224,18 @@ function App() {
   useKeyboardShortcuts(shortcuts);
   useAIChatShortcut(aiChatShortcut, () => setAIChatOpen(prev => !prev), true);
 
+  // Close nav menu on outside click
+  useEffect(() => {
+    if (!navMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (navMenuRef.current && !navMenuRef.current.contains(e.target as Node)) {
+        setNavMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [navMenuOpen]);
+
   // Widget renderer
   const renderWidget = useCallback((id: WidgetId): React.ReactNode => {
     switch (id) {
@@ -300,43 +314,83 @@ function App() {
     >
       {/* Top bar */}
       <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 sm:px-6 py-3">
-        {/* Left controls */}
-        <div className="flex items-center gap-2">
+        {/* Left controls — single launcher */}
+        <div ref={navMenuRef} className="relative">
           <button
-            onClick={() => setSettingsOpen(true)}
-            className="p-2 rounded-xl backdrop-blur-xl transition-all duration-200 cursor-pointer"
-            style={{ backgroundColor: 'var(--glass-bg-subtle)', border: '1px solid var(--glass-border-subtle)' }}
-            title="Settings (,)"
-          >
-            <IconSettings className="w-4 h-4 t-tertiary" />
-          </button>
-          <button
-            onClick={() => setAddWidgetOpen(true)}
-            className="p-2 rounded-xl backdrop-blur-xl transition-all duration-200 cursor-pointer"
-            style={{ backgroundColor: 'var(--glass-bg-subtle)', border: '1px solid var(--glass-border-subtle)' }}
-            title="Add Widget (A)"
-          >
-            <IconPlus className="w-4 h-4 t-tertiary" />
-          </button>
-          <button
-            onClick={() => setShortcutsHelpOpen(true)}
-            className="p-2 rounded-xl backdrop-blur-xl transition-all duration-200 cursor-pointer"
-            style={{ backgroundColor: 'var(--glass-bg-subtle)', border: '1px solid var(--glass-border-subtle)' }}
-            title="Keyboard Shortcuts (?)"
-          >
-            <IconShortcuts className="w-4 h-4 t-tertiary" />
-          </button>
-          <button
-            onClick={() => setAIChatOpen(prev => !prev)}
-            className={`p-2 rounded-xl backdrop-blur-xl transition-all duration-200 cursor-pointer ${aiChatOpen ? 't-secondary' : 't-tertiary'}`}
+            onClick={() => setNavMenuOpen(prev => !prev)}
+            className={`p-2 rounded-xl backdrop-blur-xl transition-all duration-200 cursor-pointer ${navMenuOpen ? 't-secondary' : 't-tertiary'}`}
             style={{
-              backgroundColor: aiChatOpen ? 'var(--glass-bg)' : 'var(--glass-bg-subtle)',
+              backgroundColor: navMenuOpen ? 'var(--glass-bg)' : 'var(--glass-bg-subtle)',
               border: '1px solid var(--glass-border-subtle)',
             }}
-            title={`AI Assistant (${aiChatShortcut === 'ctrl+space' ? 'Ctrl' : aiChatShortcut === 'meta+space' ? '⌘' : 'Alt'}+Space)`}
+            title="Menu"
           >
-            <IconAi className="w-4 h-4" />
+            <IconGrid className="w-4 h-4" />
           </button>
+
+          {/* Nav popup */}
+          {navMenuOpen && (
+            <div
+              className="absolute left-0 top-full mt-2 z-50 rounded-xl overflow-hidden backdrop-blur-xl shadow-xl min-w-[200px] animate-fade-in"
+              style={{ backgroundColor: 'var(--panel-bg)', border: '1px solid var(--glass-border)' }}
+            >
+              <button
+                onClick={() => { setSettingsOpen(true); setNavMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 cursor-pointer"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--glass-bg)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                title="Open Settings"
+              >
+                <IconSettings className="w-4 h-4 shrink-0 t-muted" />
+                <span className="flex-1 text-left">Settings</span>
+                <span className="text-[10px] t-ghost font-mono">,</span>
+              </button>
+
+              <button
+                onClick={() => { setAddWidgetOpen(true); setNavMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 cursor-pointer"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--glass-bg)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                title="Add a widget to the current layout"
+              >
+                <IconPlus className="w-4 h-4 shrink-0 t-muted" />
+                <span className="flex-1 text-left">Add Widget</span>
+                <span className="text-[10px] t-ghost font-mono">A</span>
+              </button>
+
+              <button
+                onClick={() => { setShortcutsHelpOpen(true); setNavMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 cursor-pointer"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--glass-bg)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                title="View all keyboard shortcuts"
+              >
+                <IconShortcuts className="w-4 h-4 shrink-0 t-muted" />
+                <span className="flex-1 text-left">Shortcuts</span>
+                <span className="text-[10px] t-ghost font-mono">?</span>
+              </button>
+
+              <div className="mx-3 my-1" style={{ height: '1px', backgroundColor: 'var(--glass-border)' }} />
+
+              <button
+                onClick={() => { setAIChatOpen(prev => !prev); setNavMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 cursor-pointer"
+                style={{ color: aiChatOpen ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--glass-bg)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                title={`Toggle AI Assistant (${aiChatShortcut === 'ctrl+space' ? 'Ctrl' : aiChatShortcut === 'meta+space' ? '⌘' : 'Alt'}+Space)`}
+              >
+                <IconAi className={`w-4 h-4 shrink-0 ${aiChatOpen ? '' : 't-muted'}`} />
+                <span className="flex-1 text-left">AI Assistant</span>
+                <span className="text-[10px] t-ghost font-mono">
+                  {aiChatShortcut === 'ctrl+space' ? 'Ctrl' : aiChatShortcut === 'meta+space' ? '⌘' : 'Alt'}+Space
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Layout switcher (right) */}

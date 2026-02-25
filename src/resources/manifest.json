@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "short_name": "Nexus Tab",
   "name": "Nexus Tab: Your Daily Command Center",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Transform your new tab into a modular productivity command center with glassmorphism widgets you can toggle on or off.",
   "chrome_url_overrides": {
     "newtab": "index.html"
